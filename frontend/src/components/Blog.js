@@ -1,28 +1,67 @@
-import { useState } from 'react'
+import { useSelector, useDispatch } from 'react-redux'
 
-const Blog = ({ blog, incrementLike, deleteBlog }) => {
-  const [expanded, setExpanded] = useState(false)
+import {
+  useNavigate
+} from 'react-router-dom'
 
-  const blogStyle = {
-    paddingTop: 10,
-    paddingLeft: 2,
-    border: 'solid',
-    borderWidth: 1,
-    marginBottom: 5
+import { like, removeBlog, createComment } from '../reducers/blogReducer'
+import { setNotification } from '../reducers/notificationReducer'
+
+const Blog = ({ blog }) => {
+  const user = useSelector(state => state.login)
+  const dispatch = useDispatch()
+  const navigate = useNavigate()
+
+  const incrementLike = () => {
+    dispatch(like(blog.id))
+  }
+
+  const deleteBlog = () => {
+    try {
+      dispatch(removeBlog(blog.id))
+      navigate('/')
+    } catch (exception) {
+      dispatch(setNotification('unauthorized', 5))
+    }
+  }
+
+  const addComment = async (event) => {
+    event.preventDefault()
+    const comment = {
+      text: event.target.text.value
+    }
+    event.target.text.value = ''
+    dispatch(createComment(blog.id, comment))
+  }
+
+  if (!blog) {
+    return null
   }
 
   return (
-    <div style={blogStyle} className='blog'>
-      {blog.title} {blog.author} <button onClick={() => setExpanded(!expanded)}>{expanded ? 'hide' : 'view'}</button>
-      {expanded && <>
-        <div>{blog.url}</div>
-        <div>likes {blog.likes}
-          <button onClick={incrementLike}>like</button>
-        </div>
-        <div>{blog.user && blog.user.name}</div>
-        <button onClick={deleteBlog}>delete</button>
-      </>}
-    </div>
+    <>
+      <h2>{blog.title} {blog.author}</h2>
+      <a href={blog.url}>{blog.url}</a>
+      <div>likes {blog.likes}
+        <button onClick={incrementLike}>like</button>
+      </div>
+      <div>{blog.user && `added by ${blog.user.name}`}</div>
+      {/* Not ideal but good enough for now */}
+      {user && user.name === blog.user.name && <button onClick={deleteBlog}>delete</button>}
+      <h3>comments</h3>
+      <form onSubmit={addComment}>
+        <input
+          name='text'
+          placeholder='comment'
+        />
+        <button type="submit">add comment</button>
+      </form>
+      <ul>
+        {blog.comments.map(comment =>
+          <li key={comment.id}>{comment.text}</li>
+        )}
+      </ul>
+    </>
   )
 }
 

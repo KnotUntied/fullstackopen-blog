@@ -2,12 +2,14 @@ const blogsRouter = require('express').Router()
 const { userExtractor } = require('../utils/middleware')
 
 const Blog = require('../models/blog')
+const Comment = require('../models/comment')
 const User = require('../models/user')
 
 blogsRouter.get('/', (request, response) => {
   Blog
     .find({})
     .populate('user', { username: 1, name: 1 })
+    .populate('comments', { text: 1 })
     .then(blogs => {
       response.json(blogs)
     })
@@ -15,6 +17,7 @@ blogsRouter.get('/', (request, response) => {
 
 blogsRouter.get('/:id', (request, response, next) => {
   Blog.findById(request.params.id)
+    .populate('comments', { text: 1 })
     .then(blog => {
       if (blog) {
         response.json(blog)
@@ -82,6 +85,29 @@ blogsRouter.put('/:id', async (request, response, next) => {
                               .findById(updatedBlog._id)
                               .populate('user', { username: 1, name: 1 })
   response.json(expandedBlog)
+})
+
+blogsRouter.post('/:id/comments', userExtractor, async (request, response) => {
+  const { text } = request.body
+  const blog = await Blog.findById(request.params.id)
+
+  if (!blog) {
+    return response.status(404).end()
+  }
+
+  const comment = new Comment({ text, blog: blog._id })
+
+  if (text === undefined) {
+    return response.status(400).json({ error: 'text missing' })
+  }
+
+  error = blog.validateSync();
+
+  const savedComment = await comment.save()
+  blog.comments = blog.comments.concat(savedComment._id)
+  await blog.save()
+
+  response.status(201).json(savedComment)
 })
 
 module.exports = blogsRouter
